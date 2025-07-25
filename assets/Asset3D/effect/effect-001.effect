@@ -1,0 +1,122 @@
+// Copyright (c) 2017-2020 Xiamen Yaji Software Co., Ltd.
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: sprite-vs:vert
+      frag: sprite-fs:frag
+      depthStencilState:
+        depthTest: true
+        depthWrite: true
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendDstAlpha: one_minus_src_alpha
+      rasterizerState:
+        cullMode: back
+      properties:
+        alphaThreshold: { value: 0.5 }
+        startColor: { value: [1.0, 1.0, 1.0, 1.0], editor: {type: color} }
+        endColor: { value: [1.0, 1.0, 1.0, 1.0], editor: {type: color} }
+        lightDir: { value: [0.0, 0.0, -1.0, 0.0], editor: {type: vector} } # Thêm thành phần thứ 4
+        lightColor: { value: [1.0, 1.0, 1.0, 1.0], editor: {type: color} }
+}%
+CCProgram sprite-vs %{
+  precision highp float;
+  #include <builtin/uniforms/cc-global>
+  #if USE_LOCAL
+    #include <builtin/uniforms/cc-local>
+  #endif
+  #if SAMPLE_FROM_RT
+    #include <common/common-define>
+  #endif
+
+  in vec3 a_position;
+  in vec2 a_texCoord;
+  in vec4 a_color;
+  in vec3 a_normal; // Thêm pháp tuyến cho ánh sáng 3D
+
+  out vec4 color;
+  out vec2 uv0;
+  out vec3 v_normal; // Truyền pháp tuyến sang fragment shader
+  out vec3 v_worldPos; // Vị trí trong không gian thế giới
+
+  vec4 vert () {
+    vec4 pos = vec4(a_position, 1.0);
+
+    #if USE_LOCAL
+      pos = cc_matWorld * pos; // Biến đổi sang không gian thế giới
+      v_worldPos = pos.xyz;
+      v_normal = normalize((cc_matWorld * vec4(a_normal, 0.0)).xyz); // Biến đổi pháp tuyến
+    #else
+      v_worldPos = a_position;
+      v_normal = a_normal;
+    #endif
+
+    pos = cc_matViewProj * pos; // Biến đổi sang không gian màn hình
+
+    uv0 = a_texCoord;
+    #if SAMPLE_FROM_RT
+      CC_HANDLE_RT_SAMPLE_FLIP(uv0);
+    #endif
+    color = a_color;
+
+    return pos;
+  }
+}%
+CCProgram sprite-fs %{
+  precision highp float;
+  #include <builtin/internal/embedded-alpha>
+  #include <builtin/internal/alpha-test>
+
+  in vec4 color;
+  in vec2 uv0;
+  in vec3 v_normal; // Pháp tuyến từ vertex shader
+  in vec3 v_worldPos; // Vị trí thế giới từ vertex shader
+
+  uniform Constant {
+    vec4 startColor;
+    vec4 endColor;
+    vec4 lightDir; // Thay vec3 thành vec4
+    vec4 lightColor; // Đã là vec4
+  };
+
+  #if USE_TEXTURE
+    #pragma builtin(local)
+    layout(set = 2, binding = 11) uniform sampler2D cc_spriteTexture;
+  #endif
+
+  vec4 frag () {
+    vec4 o = vec4(1.0, 1.0, 1.0, 1.0);
+
+    #if USE_TEXTURE
+      o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
+      #if IS_GRAY
+        float gray = 0.2126 * o.r + 0.7152 * o.g + 0.0722 * o.b;
+        o.r = o.g = o.b = gray;
+      #endif
+
+      #if USE_HORIZONTAL
+        o.rgb *= mix(startColor, endColor, vec4(uv0.x)).rgb;
+      #endif
+
+      #if USE_VERTICAL
+        o.rgb *= mix(startColor, endColor, vec4(uv0.y)).rgb;
+      #endif
+    #endif
+
+    o *= color;
+
+    // Tính toán ánh sáng định hướng
+    vec3 norm = normalize(v_normal);
+    vec3 light = normalize(lightDir.xyz); // Sử dụng .xyz để lấy vec3 từ vec4
+    float diff = max(dot(norm, light), 0.0); // Tính ánh sáng khuếch tán
+    vec3 diffuse = diff * lightColor.rgb * o.rgb;
+
+    o.rgb = diffuse; // Áp dụng ánh sáng khuếch tán
+    ALPHA_TEST(o);
+
+    return o;
+  }
+}%

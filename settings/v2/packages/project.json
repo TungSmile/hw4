@@ -1,0 +1,39 @@
+{
+  "physics": {
+    "collisionGroups": [
+      {
+        "index": 1,
+        "name": "screw"
+      },
+      {
+        "index": 2,
+        "name": "shade"
+      }
+    ],
+    "gravity": {
+      "y": -20
+    },
+    "defaultMaterial": {
+      "rollingFriction": 10,
+      "friction": 10,
+      "restitution": 0.5,
+      "spinningFriction": 10
+    }
+  },
+  "general": {
+    "designResolution": {
+      "width": 1080,
+      "height": 1920
+    }
+  },
+  "layer": [
+    {
+      "name": "screw",
+      "value": 1
+    },
+    {
+      "name": "piece",
+      "value": 2
+    }
+  ]
+}
