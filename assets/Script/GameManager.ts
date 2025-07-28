@@ -518,7 +518,7 @@ export class GameManager extends Component {
             }
             const rotateX = ((currentPos.x - t.startEventRotation.x) * t.smoothRotation) * 1.8;
             const rotateY = -((currentPos.y - t.startEventRotation.y) * t.smoothRotation) * 1.8;
-            t.objMain.rotation = Quat.rotateAround(new Quat, t.objMain.rotation.clone(), Vec3.UNIT_X, rotateY)
+            // t.objMain.rotation = Quat.rotateAround(new Quat, t.objMain.rotation.clone(), Vec3.UNIT_X, rotateY)
             t.objMain.rotation = Quat.rotateAround(new Quat, t.objMain.rotation.clone(), Vec3.UNIT_Y, rotateX)
             t.endEventRotation = currentPos;
         }
@@ -564,7 +564,7 @@ export class GameManager extends Component {
                 t.showGlass(temp);
             }
 
-// 
+            // 
         }
 
     }
